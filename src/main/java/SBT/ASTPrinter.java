@@ -1,4 +1,4 @@
-/*
+package SBT;/*
  Modified code to fit SBT output
  https://github.com/javaparser/javaparser/blob/master/javaparser-core/src/main/java/com/github/javaparser/printer/YamlPrinter.java
  */
@@ -8,7 +8,6 @@ import static java.util.stream.Collectors.toList;
 
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Optional;
 
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.Node;
@@ -33,10 +32,7 @@ public class ASTPrinter {
                 "        // This is above return statement\n" +
                 "        return requests.remove(id);\n" +
                 "    }");
-        //System.out.println(astp.output(method));
-        List<String> comments = astp.getComments(method);
-        for(String s: comments)
-            System.out.println(s);
+        System.out.println(astp.output(method));
     }
 
 
@@ -83,14 +79,15 @@ public class ASTPrinter {
 
         level++;
         for (PropertyMetaModel a : attributes) {
-            builder.append(System.lineSeparator() + indent(level) + "(" + metaModel.getTypeName() + "_" + escapeValue(a.getValue(node).toString()));
+            builder.append("_" + escapeValue(a.getValue(node).toString()));
+            builder.append(System.lineSeparator() +  indent(level) + "(" + metaModel.getTypeName() + "_" + escapeValue(a.getValue(node).toString()));
         }
 
         for (PropertyMetaModel sn : subNodes) {
             Node nd = (Node) sn.getValue(node);
             if (nd != null){
                 output(nd, sn.getName(), level, builder);
-                builder.append( System.getProperty("line.separator") + indent(level) + ")" + metaModel.getTypeName());
+                builder.append( System.lineSeparator() + indent(level) + ")" + metaModel.getTypeName());
                 level--;
             }
         }
