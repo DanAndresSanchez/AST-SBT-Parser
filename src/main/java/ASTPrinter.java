@@ -6,12 +6,15 @@
 import static com.github.javaparser.utils.Utils.assertNotNull;
 import static java.util.stream.Collectors.toList;
 
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.comments.Comment;
 import com.github.javaparser.metamodel.NodeMetaModel;
 import com.github.javaparser.metamodel.PropertyMetaModel;
 import com.github.javaparser.printer.YamlPrinter;
@@ -23,11 +26,36 @@ public class ASTPrinter {
 
     public static void main(String[] args){
         ASTPrinter astp = new ASTPrinter();
-        MethodDeclaration method = StaticJavaParser.parseMethodDeclaration("public String extractFor(Integer id){\n" +
-                "LOG.debug(\"Extracting method with ID:{}\", id);\n" +
-                "return requests.remove(id);\n" +
-                "}");
-        System.out.println(astp.output(method));
+        MethodDeclaration method = StaticJavaParser.parseMethodDeclaration("// This is the method header\n" +
+                "    public String extractFor(Integer id){\n" +
+                "        LOG.debug(\"Extracting method with ID:{}\", id);  // This is inline with LOG.debug\n" +
+                "        \n" +
+                "        // This is above return statement\n" +
+                "        return requests.remove(id);\n" +
+                "    }");
+        //System.out.println(astp.output(method));
+        List<String> comments = astp.getComments(method);
+        for(String s: comments)
+            System.out.println(s);
+    }
+
+
+    // Getting all commments in method, header, inline, and orphaned
+    public List<String> getComments(Node node){
+        List<String> comments = new LinkedList<String>();
+
+        String headerComment = node.getComment().toString();
+        List<Comment> inlineComments = node.getAllContainedComments();
+
+        // Getting comments between [ ... ]
+        headerComment = headerComment.substring(headerComment.indexOf("[") + 1);
+        headerComment = headerComment.substring(0, headerComment.indexOf("]"));
+        comments.add(headerComment);
+
+        for(Comment com: inlineComments)
+            comments.add(com.toString());
+
+        return comments;
     }
 
     public String output(Node node) {
@@ -39,6 +67,7 @@ public class ASTPrinter {
     }
 
     public void output(Node node, String name, int level, StringBuilder builder) {
+        // System.out.println(" !!!!!" + name);
         assertNotNull(node);
         NodeMetaModel metaModel = node.getMetaModel();
         List<PropertyMetaModel> allPropertyMetaModels = metaModel.getAllPropertyMetaModels();
