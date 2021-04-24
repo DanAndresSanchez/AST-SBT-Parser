@@ -4,11 +4,13 @@ package SBT;/*
  */
 
 import static com.github.javaparser.utils.Utils.assertNotNull;
+import static com.github.javaparser.utils.Utils.capitalize;
 import static java.util.stream.Collectors.toList;
 
 import java.util.LinkedList;
 import java.util.List;
 
+import com.github.javaparser.ParseProblemException;
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
@@ -44,9 +46,12 @@ public class ASTPrinter {
         List<Comment> inlineComments = node.getAllContainedComments();
 
         // Getting comments between [ ... ]
-        headerComment = headerComment.substring(headerComment.indexOf("[") + 1);
-        headerComment = headerComment.substring(0, headerComment.indexOf("]"));
-        comments.add(headerComment);
+        if(!headerComment.equals("Optional.empty")){
+            headerComment = headerComment.substring(headerComment.indexOf("[") + 1);
+            headerComment = headerComment.substring(0, headerComment.indexOf("]"));
+            comments.add(headerComment);
+        }
+
 
         for(Comment com: inlineComments)
             comments.add(com.toString());
@@ -55,53 +60,63 @@ public class ASTPrinter {
     }
 
     public String output(Node node) {
-        StringBuilder output = new StringBuilder();
-        output.append("---");
-        output(node, "root", 0, output);
-        output.append(System.lineSeparator() + "...");
-        return output.toString();
+        try{
+            StringBuilder output = new StringBuilder();
+            output.append("---");
+            output(node, "root", 0, output);
+            output.append(System.lineSeparator() + "...");
+            return output.toString();
+        }
+        catch (com.github.javaparser.ParseProblemException e){
+            return "error bitch";
+        }
     }
 
     public void output(Node node, String name, int level, StringBuilder builder) {
         // System.out.println(" !!!!!" + name);
-        assertNotNull(node);
-        NodeMetaModel metaModel = node.getMetaModel();
-        List<PropertyMetaModel> allPropertyMetaModels = metaModel.getAllPropertyMetaModels();
-        List<PropertyMetaModel> attributes = allPropertyMetaModels.stream().filter(PropertyMetaModel::isAttribute)
-                .filter(PropertyMetaModel::isSingular).collect(toList());
-        List<PropertyMetaModel> subNodes = allPropertyMetaModels.stream().filter(PropertyMetaModel::isNode)
-                .filter(PropertyMetaModel::isSingular).collect(toList());
-        List<PropertyMetaModel> subLists = allPropertyMetaModels.stream().filter(PropertyMetaModel::isNodeList)
-                .collect(toList());
+        try{
+            assertNotNull(node);
+            NodeMetaModel metaModel = node.getMetaModel();
+            List<PropertyMetaModel> allPropertyMetaModels = metaModel.getAllPropertyMetaModels();
+            List<PropertyMetaModel> attributes = allPropertyMetaModels.stream().filter(PropertyMetaModel::isAttribute)
+                    .filter(PropertyMetaModel::isSingular).collect(toList());
+            List<PropertyMetaModel> subNodes = allPropertyMetaModels.stream().filter(PropertyMetaModel::isNode)
+                    .filter(PropertyMetaModel::isSingular).collect(toList());
+            List<PropertyMetaModel> subLists = allPropertyMetaModels.stream().filter(PropertyMetaModel::isNodeList)
+                    .collect(toList());
 
-        if (outputNodeType)
-            builder.append(System.lineSeparator() + indent(level) + "(" + metaModel.getTypeName());
+            if (outputNodeType)
+                builder.append(System.lineSeparator() + indent(level) + "(" + metaModel.getTypeName());
 
-        level++;
-        for (PropertyMetaModel a : attributes) {
-            builder.append("_" + escapeValue(a.getValue(node).toString()));
-            builder.append(System.lineSeparator() +  indent(level) + "(" + metaModel.getTypeName() + "_" + escapeValue(a.getValue(node).toString()));
-        }
+            level++;
+            for (PropertyMetaModel a : attributes) {
+                builder.append("_" + escapeValue(a.getValue(node).toString()));
+                builder.append(System.lineSeparator() +  indent(level) + "(" + metaModel.getTypeName() + "_" + escapeValue(a.getValue(node).toString()));
+            }
 
-        for (PropertyMetaModel sn : subNodes) {
-            Node nd = (Node) sn.getValue(node);
-            if (nd != null){
-                output(nd, sn.getName(), level, builder);
-                builder.append( System.lineSeparator() + indent(level) + ")" + metaModel.getTypeName());
-                level--;
+            for (PropertyMetaModel sn : subNodes) {
+                Node nd = (Node) sn.getValue(node);
+                if (nd != null){
+                    output(nd, sn.getName(), level, builder);
+                    builder.append( System.lineSeparator() + indent(level) + ")" + metaModel.getTypeName());
+                    level--;
+                }
+            }
+
+            for (PropertyMetaModel sl : subLists) {
+                NodeList<? extends Node> nl = (NodeList<? extends Node>) sl.getValue(node);
+                if (nl != null && nl.isNonEmpty()) {
+                    //builder.append(System.lineSeparator() + indent(level) + sl.getName() + ": ");
+                    String slName = sl.getName();
+                    slName = slName.endsWith("s") ? slName.substring(0, sl.getName().length() - 1) : slName;
+                    for (Node nd : nl)
+                        output(nd, "- " + slName, level , builder);
+                        builder.append( ")" + metaModel.getTypeName() + "_" + slName );
+                }
             }
         }
-
-        for (PropertyMetaModel sl : subLists) {
-            NodeList<? extends Node> nl = (NodeList<? extends Node>) sl.getValue(node);
-            if (nl != null && nl.isNonEmpty()) {
-                //builder.append(System.lineSeparator() + indent(level) + sl.getName() + ": ");
-                String slName = sl.getName();
-                slName = slName.endsWith("s") ? slName.substring(0, sl.getName().length() - 1) : slName;
-                for (Node nd : nl)
-                    output(nd, "- " + slName, level , builder);
-                    builder.append( ")" + metaModel.getTypeName() + "_" + slName );
-            }
+        catch (com.github.javaparser.ParseProblemException e){
+            System.out.println("Error bitch");
         }
     }
 
