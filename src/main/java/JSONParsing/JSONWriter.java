@@ -36,26 +36,23 @@ public class JSONWriter {
             if (line.equals(""))
                 continue;
             // Do SBT Stuff
-            // TODO after reading code segment, get SBT and Comments, and write code, SBT, and comments to new JSON file
             String code = line.substring(10, line.length() - 2).trim();
-            code = code.replace("\\n", "").replace("\\t", "").trim();
-//            String tabNewLine = code.substring(0,2);
-//            System.out.println(tabNewLine);
-//            if(tabNewLine.equals("\\t") || tabNewLine.equals("\\n"))
-//                code = code.substring(2, code.length());
+            code = code.replace("\\n", "").replace("\\t", "").replace("\\r", "").trim();
+
             try{
                 MethodDeclaration method = StaticJavaParser.parseMethodDeclaration(code);
                 String SBT = astp.output(method);
                 List<String> comments = astp.getComments(method);
-//              for(String s: comments)
-//                System.out.println(s);
-//              System.out.println(SBT);
                 writeToFile(code, SBT, comments, bw);
                 counter++;
                 System.out.println(counter + " objects completed.");
             }
             catch (com.github.javaparser.ParseProblemException ignored) {}
         }
+
+        // finish JSON
+        bw.write("]");
+        bw.close();
     }
 
     private void writeToFile(String code, String sbt, List<String> comments, BufferedWriter bw) throws IOException {
@@ -77,7 +74,7 @@ public class JSONWriter {
         }
 
         // Create json object
-        String json = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(codeObject) + ",";
+        String json = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(codeObject + ",");
 
         // Write to dataset
         bw.write(json);
